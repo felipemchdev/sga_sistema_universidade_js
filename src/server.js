@@ -1,9 +1,17 @@
 const express = require("express");
 const path = require("path");
+const cors = require('cors');
 const { query, testConnection, getConnection } = require("./config/db");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Configuração do CORS
+app.use(cors({
+    origin: 'http://localhost:3000',
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}));
 
 // Configuração do middleware
 app.use(express.json());
@@ -26,6 +34,7 @@ app.use("/api/alunos", require("./routes/alunos"));
 app.use("/api/matriculas", require("./routes/matriculas"));
 app.use("/api/pagamentos", require("./routes/pagamentos"));
 app.use("/api/dashboard", require("./routes/dashboard"));
+app.use("/api/estagios", require("./routes/estagios"));
 
 // Rota para a página inicial (dashboard)
 app.get('/', (req, res) => {
@@ -43,6 +52,19 @@ app.get('/painel', (req, res) => {
         if (err) {
             console.error('Erro ao carregar o painel:', err);
             res.status(500).send('Erro ao carregar o painel de controle');
+        }
+    });
+});
+
+// Rota para a página de estágios
+app.get('/estagios', (req, res) => {
+    res.sendFile(path.join(__dirname, '../public/estagios.html'), (err) => {
+        if (err) {
+            console.error('Reiniciando o servidor para aplicar as alterações...');
+            // Tenta reiniciar o servidor se o arquivo não for encontrado
+            setTimeout(() => {
+                process.exit(1);
+            }, 1000);
         }
     });
 });

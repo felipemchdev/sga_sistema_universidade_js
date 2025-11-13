@@ -1,0 +1,761 @@
+// Variáveis globais
+let estagios = [];
+let empresas = [];
+let alunos = [];
+
+// Elementos da interface
+const tbodyEstagio = document.getElementById('tbody-estagio');
+const btnEstagiosAtivos = document.getElementById('btn-estagios-ativos');
+const btnEstagiosConcluidos = document.getElementById('btn-estagios-concluidos');
+const searchEstagio = document.getElementById('search-estagio');
+
+// Inicialização
+function initEstagios() {
+    // Verificar se estamos na aba de estágios
+    const tabEstagios = document.getElementById('estagios');
+    if (!tabEstagios) return;
+    
+    // Carregar dados iniciais
+    carregarDadosIniciais();
+    
+    // Adicionar eventos
+    adicionarEventos();
+    
+    // Configurar eventos dos botões
+    const btnNovoEstagio = document.getElementById('btn-novo-estagio');
+    const btnNovaEmpresa = document.getElementById('btn-nova-empresa');
+    
+    if (btnNovoEstagio) {
+        btnNovoEstagio.addEventListener('click', () => abrirModalNovoEstagio());
+    }
+    
+    if (btnNovaEmpresa) {
+        btnNovaEmpresa.addEventListener('click', () => abrirModalNovaEmpresa());
+    }
+}
+
+async function carregarDadosIniciais() {
+    try {
+        mostrarCarregamento(true);
+        await Promise.all([
+            carregarEstagios(),
+            carregarEmpresas(),
+            carregarAlunos()
+        ]);
+        renderizarEstagios();
+    } catch (error) {
+        console.error('Erro ao carregar dados:', error);
+        mostrarMensagem('Erro ao carregar os dados. Tente novamente mais tarde.', 'error');
+    } finally {
+        mostrarCarregamento(false);
+    }
+}
+
+function adicionarEventos() {
+    // Filtros
+    btnEstagiosAtivos.addEventListener('click', () => {
+        btnEstagiosAtivos.classList.add('border-blue-500', 'text-blue-600', 'bg-blue-50');
+        btnEstagiosAtivos.classList.remove('border-transparent', 'text-gray-600', 'hover:bg-gray-100');
+        btnEstagiosConcluidos.classList.remove('border-blue-500', 'text-blue-600', 'bg-blue-50');
+        btnEstagiosConcluidos.classList.add('border-transparent', 'text-gray-600', 'hover:bg-gray-100');
+        renderizarEstagios('em_andamento');
+    });
+
+    btnEstagiosConcluidos.addEventListener('click', () => {
+        btnEstagiosConcluidos.classList.add('border-blue-500', 'text-blue-600', 'bg-blue-50');
+        btnEstagiosConcluidos.classList.remove('border-transparent', 'text-gray-600', 'hover:bg-gray-100');
+        btnEstagiosAtivos.classList.remove('border-blue-500', 'text-blue-600', 'bg-blue-50');
+        btnEstagiosAtivos.classList.add('border-transparent', 'text-gray-600', 'hover:bg-gray-100');
+        renderizarEstagios('concluido');
+    });
+
+    // Pesquisa
+    searchEstagio.addEventListener('input', (e) => {
+        const termo = e.target.value.toLowerCase();
+        filtrarEstagios(termo);
+    });
+}
+
+// Funções para carregar dados
+async function carregarEstagios() {
+    try {
+        const response = await fetch('/api/estagios');
+        if (!response.ok) throw new Error('Erro ao carregar estágios');
+        estagios = await response.json();
+        return estagios;
+    } catch (error) {
+        console.error('Erro ao carregar estágios:', error);
+        throw error;
+    }
+}
+
+async function carregarEmpresas() {
+    try {
+        const response = await fetch('/api/estagios/empresas');
+        if (!response.ok) throw new Error('Erro ao carregar empresas');
+        empresas = await response.json();
+        return empresas;
+    } catch (error) {
+        console.error('Erro ao carregar empresas:', error);
+        throw error;
+    }
+}
+
+async function carregarAlunos() {
+    try {
+        const response = await fetch('/api/alunos');
+        if (!response.ok) throw new Error('Erro ao carregar alunos');
+        alunos = await response.json();
+        return alunos;
+    } catch (error) {
+        console.error('Erro ao carregar alunos:', error);
+        throw error;
+    }
+}
+
+// Funções para renderizar a interface
+function renderizarEstagios(status = 'em_andamento') {
+    try {
+        const estagiosFiltrados = estagios.filter(e => e.status === status);
+        
+        if (estagiosFiltrados.length === 0) {
+            tbodyEstagio.innerHTML = `
+                <tr>
+                    <td colspan="6" class="px-6 py-4 text-center text-sm text-gray-500">
+                        <i class="fas fa-inbox text-2xl text-gray-400 mb-2"></i>
+                        <p>Nenhum estágio ${status === 'em_andamento' ? 'ativo' : 'concluído'} encontrado</p>
+                    </td>
+                </tr>`;
+            return;
+        }
+
+        const html = estagiosFiltrados.map(estagio => {
+            const aluno = alunos.find(a => a.id_aluno === estagio.id_aluno) || {};
+            const empresa = empresas.find(e => e.id_empresa === estagio.id_empresa) || {};
+            const progresso = Math.min(100, Math.round((estagio.carga_horaria_cumprida / estagio.carga_horaria_total) * 100));
+            
+            // Previne erros de injeção XSS escapando os dados
+            const escapeHtml = (unsafe) => {
+                return unsafe
+                    .toString()
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#039;');
+            };
+            
+            const alunoNome = escapeHtml(aluno.nome || 'Aluno não encontrado');
+            const alunoEmail = escapeHtml(aluno.email || '');
+            const empresaNome = escapeHtml(empresa.nome || 'Empresa não encontrada');
+            const empresaResponsavel = escapeHtml(empresa.responsavel || '');
+            const dataInicio = escapeHtml(formatarData(estagio.data_inicio));
+            const dataTermino = estagio.data_termino ? escapeHtml(formatarData(estagio.data_termino)) : 'Atual';
+            const turno = escapeHtml(estagio.turno || 'Período não informado');
+            
+            return `
+                <tr class="hover:bg-gray-50" data-estagio-id="${estagio.id_estagio}">
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0 h-10 w-10 flex items-center justify-center bg-blue-100 rounded-full">
+                                <i class="fas fa-user-graduate text-blue-600"></i>
+                            </div>
+                            <div class="ml-4">
+                                <div class="text-sm font-medium text-gray-900">${alunoNome}</div>
+                                <div class="text-sm text-gray-500">${alunoEmail}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <button data-empresa-id="${empresa.id_empresa || ''}" 
+                                class="text-left text-sm text-blue-600 hover:text-blue-800 hover:underline focus:outline-none">
+                            <div class="font-medium">${empresaNome}</div>
+                            <div class="text-sm text-gray-500">${empresaResponsavel}</div>
+                        </button>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm text-gray-900">${dataInicio} - ${dataTermino}</div>
+                        <div class="text-sm text-gray-500">${turno}</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="text-sm text-gray-900">${estagio.carga_horaria_cumprida}h / ${estagio.carga_horaria_total}h</div>
+                        <div class="w-full bg-gray-200 rounded-full h-2 mt-1">
+                            <div class="bg-blue-600 h-2 rounded-full" style="width: ${progresso}%"></div>
+                        </div>
+                        <div class="text-xs text-gray-500 mt-1">${progresso}% concluído</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                            estagio.status === 'concluido' 
+                                ? 'bg-green-100 text-green-800' 
+                                : 'bg-blue-100 text-blue-800'
+                        }">
+                            ${estagio.status === 'concluido' ? 'Concluído' : 'Em andamento'}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <div class="flex space-x-2 justify-end">
+                            <button data-action="editar" data-estagio-id="${estagio.id_estagio}" class="text-indigo-600 hover:text-indigo-900 p-1">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button data-action="atualizar-carga" data-estagio-id="${estagio.id_estagio}" class="text-green-600 hover:text-green-900 p-1">
+                                <i class="fas fa-plus-circle"></i>
+                            </button>
+                            ${estagio.status === 'em_andamento' ? `
+                                <button data-action="finalizar" data-estagio-id="${estagio.id_estagio}" class="text-green-600 hover:text-green-900 p-1">
+                                    <i class="fas fa-check"></i>
+                                </button>
+                            ` : ''}
+                            <button data-action="excluir" data-estagio-id="${estagio.id_estagio}" class="text-red-600 hover:text-red-900 p-1">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>`;
+        }).join('');
+        
+        tbodyEstagio.innerHTML = html;
+        
+        // Adiciona event listeners delegados para os botões de ação
+        tbodyEstagio.addEventListener('click', (e) => {
+            const button = e.target.closest('button[data-action]');
+            if (!button) return;
+            
+            const action = button.getAttribute('data-action');
+            const estagioId = button.getAttribute('data-estagio-id');
+            
+            if (!estagioId) return;
+            
+            switch (action) {
+                case 'editar':
+                    editarEstagio(parseInt(estagioId));
+                    break;
+                case 'atualizar-carga':
+                    atualizarCargaHoraria(parseInt(estagioId));
+                    break;
+                case 'finalizar':
+                    finalizarEstagio(parseInt(estagioId));
+                    break;
+                case 'excluir':
+                    confirmarExclusaoEstagio(parseInt(estagioId));
+                    break;
+            }
+        });
+        
+        // Adiciona event listener para o botão de detalhes da empresa
+        tbodyEstagio.addEventListener('click', (e) => {
+            const button = e.target.closest('button[data-empresa-id]');
+            if (!button) return;
+            
+            const empresaId = button.getAttribute('data-empresa-id');
+            if (!empresaId) return;
+            
+            const empresa = empresas.find(e => e.id_empresa === parseInt(empresaId));
+            if (empresa) {
+                mostrarDetalhesEmpresa(empresa);
+            }
+        });
+        
+    } catch (error) {
+        console.error('Erro ao renderizar estágios:', error);
+        tbodyEstagio.innerHTML = `
+            <tr>
+                <td colspan="6" class="px-6 py-4 text-center text-sm text-gray-500">
+                    <i class="fas fa-exclamation-triangle text-2xl text-gray-400 mb-2"></i>
+                    <p>Erro ao renderizar estágios</p>
+                </td>
+            </tr>`;
+    }
+}
+
+// Função para abrir o modal de novo estágio
+function abrirModalNovoEstagio() {
+    // Fechar qualquer modal aberto
+    fecharModal();
+    
+    // Verificar se existem empresas e alunos cadastrados
+    if (empresas.length === 0 || alunos.length === 0) {
+        mostrarMensagem('É necessário ter pelo menos uma empresa e um aluno cadastrados para criar um estágio.', 'error');
+        return;
+    }
+    
+    // Criar o modal dinâmico
+    const modal = document.createElement('div');
+    modal.className = 'modal-dinamico fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4';
+    modal.innerHTML = `
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto transform transition-all duration-300 ease-out" id="modal-novo-estagio">
+            <div class="p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-xl font-semibold text-gray-900">Novo Estágio</h3>
+                    <button type="button" class="text-gray-400 hover:text-gray-500 focus:outline-none">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                <form id="form-novo-estagio" class="space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div class="md:col-span-2">
+                            <label for="aluno_id" class="block text-sm font-medium text-gray-700 mb-1">Aluno *</label>
+                            <select id="aluno_id" name="id_aluno" required
+                                class="w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="">Selecione um aluno</option>
+                                ${alunos.map(aluno => 
+                                    `<option value="${aluno.id_aluno}">${aluno.nome} - ${aluno.ra || ''}</option>`
+                                ).join('')}
+                            </select>
+                        </div>
+                        
+                        <div class="md:col-span-2">
+                            <label for="empresa_id" class="block text-sm font-medium text-gray-700 mb-1">Empresa *</label>
+                            <div class="flex gap-2">
+                                <select id="empresa_id" name="id_empresa" required
+                                    class="flex-1 border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <option value="">Selecione uma empresa</option>
+                                    ${empresas.map(empresa => 
+                                        `<option value="${empresa.id_empresa}">${empresa.nome}</option>`
+                                    ).join('')}
+                                </select>
+                                <button type="button" onclick="abrirModalNovaEmpresa()"
+                                    class="px-3 py-2 bg-blue-100 text-blue-600 rounded-md hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label for="data_inicio" class="block text-sm font-medium text-gray-700 mb-1">Data de Início *</label>
+                            <input type="date" id="data_inicio" name="data_inicio" required
+                                class="w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        
+                        <div>
+                            <label for="data_termino" class="block text-sm font-medium text-gray-700 mb-1">Data de Término</label>
+                            <input type="date" id="data_termino" name="data_termino"
+                                class="w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        
+                        <div>
+                            <label for="carga_horaria_total" class="block text-sm font-medium text-gray-700 mb-1">Carga Horária Total (horas) *</label>
+                            <input type="number" id="carga_horaria_total" name="carga_horaria_total" required min="1" value="240"
+                                class="w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        
+                        <div>
+                            <label for="valor_bolsa" class="block text-sm font-medium text-gray-700 mb-1">Valor da Bolsa (R$) *</label>
+                            <input type="number" id="valor_bolsa" name="valor_bolsa" required min="0" step="0.01" value="600.00"
+                                class="w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        
+                        <div class="flex items-center">
+                            <input type="checkbox" id="status" name="status" value="concluido"
+                                class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                            <label for="status" class="ml-2 block text-sm text-gray-700">
+                                Estágio concluído
+                            </label>
+                        </div>
+                        
+                        <div class="md:col-span-2">
+                            <label for="observacoes" class="block text-sm font-medium text-gray-700 mb-1">Observações</label>
+                            <textarea id="observacoes" name="observacoes" rows="3"
+                                class="w-full border border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                        </div>
+                    </div>
+                    
+                    <div class="flex justify-end space-x-3 pt-4 border-t border-gray-200">
+                        <button 
+                            type="button" 
+                            class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                            onclick="fecharModal()"
+                        >
+                            Cancelar
+                        </button>
+                        <button 
+                            type="submit" 
+                            class="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                        >
+                            <i class="fas fa-save mr-2"></i> Salvar Estágio
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    `;
+    
+    // Adicionar o modal ao documento
+    document.body.appendChild(modal);
+    
+    // Adicionar evento de clique no botão de fechar
+    const closeButton = modal.querySelector('button');
+    if (closeButton) {
+        closeButton.addEventListener('click', fecharModal);
+    }
+    
+    // Adicionar evento de clique fora do modal para fechar
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            fecharModal();
+        }
+    });
+    
+    // Adicionar evento de tecla ESC para fechar
+    const keydownHandler = (e) => {
+        if (e.key === 'Escape') {
+            fecharModal();
+            document.removeEventListener('keydown', keydownHandler);
+        }
+    };
+    
+    document.addEventListener('keydown', keydownHandler);
+    
+    // Adicionar evento de submit ao formulário
+    const form = modal.querySelector('form');
+    if (form) {
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            salvarNovoEstagio(modal);
+        });
+    }
+    
+    // Inicializar os selects com Select2 se disponível
+    if (typeof $.fn.select2 !== 'undefined') {
+        $('#aluno_id, #empresa_id').select2({
+            dropdownParent: modal,
+            width: '100%'
+        });
+    }
+}
+
+// Função para salvar um novo estágio
+async function salvarNovoEstagio(modalElement) {
+    const form = document.getElementById('form-novo-estagio');
+    if (!form) return;
+    
+    try {
+        // Validar campos obrigatórios
+        const camposObrigatorios = ['aluno_id', 'empresa_id', 'data_inicio', 'carga_horaria_total'];
+        const camposFaltando = camposObrigatorios.filter(campo => !form[campo]?.value.trim());
+        
+        if (camposFaltando.length > 0) {
+            const camposFaltandoFormatados = camposFaltando
+                .map(campo => {
+                    const labels = {
+                        'aluno_id': 'Aluno',
+                        'empresa_id': 'Empresa',
+                        'data_inicio': 'Data de Início',
+                        'carga_horaria_total': 'Carga Horária Total'
+                    };
+                    return labels[campo] || campo;
+                })
+                .join(', ');
+                
+            mostrarMensagem(`Preencha os campos obrigatórios: ${camposFaltandoFormatados}`, 'error');
+            return;
+        }
+        
+        const formData = new FormData(form);
+        const dados = Object.fromEntries(formData.entries());
+        
+        // Converter strings vazias para null
+        Object.keys(dados).forEach(key => {
+            if (dados[key] === '') dados[key] = null;
+        });
+        
+        // Converter strings numéricas para números
+        if (dados.empresa_id) dados.empresa_id = parseInt(dados.empresa_id);
+        if (dados.aluno_id) dados.aluno_id = parseInt(dados.aluno_id);
+        if (dados.carga_horaria_total) dados.carga_horaria_total = parseInt(dados.carga_horaria_total);
+        if (dados.carga_horaria_cumprida) {
+            dados.carga_horaria_cumprida = parseInt(dados.carga_horaria_cumprida);
+        } else {
+            dados.carga_horaria_cumprida = 0; // Valor padrão
+        }
+        if (dados.valor_bolsa) dados.valor_bolsa = parseFloat(dados.valor_bolsa);
+        
+        // Definir status
+        dados.status = document.getElementById('status').checked ? 'concluido' : 'em_andamento';
+        
+        // Mostrar loading
+        mostrarCarregamento(true, 'Salvando estágio...');
+        
+        // Enviar para a API
+        const response = await fetch('/api/estagios', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(dados)
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.message || 'Erro ao salvar estágio');
+        }
+        
+        const novoEstagio = await response.json();
+        
+        // Adicionar o novo estágio à lista local
+        estagios.unshift(novoEstagio);
+        
+        // Atualizar a interface
+        const currentTab = btnEstagiosAtivos?.classList.contains('border-blue-500') ? 'em_andamento' : 'concluido';
+        renderizarEstagios(currentTab);
+        
+        // Mostrar mensagem de sucesso
+        mostrarMensagem('Estágio cadastrado com sucesso!', 'success');
+        
+        // Fechar o modal
+    
+    if (camposFaltando.length > 0) {
+        mostrarMensagem(`Preencha todos os campos obrigatórios: ${camposFaltando.join(', ')}`, 'error');
+        return;
+    }
+    
+    const formData = new FormData(form);
+    const dados = Object.fromEntries(formData.entries());
+    
+    try {
+        mostrarCarregamento(true);
+        
+        const response = await fetch('/api/estagios/empresas', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(dados)
+        });
+        
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Erro ao salvar empresa');
+        }
+        
+        // Recarregar as empresas e estágios
+        await Promise.all([
+            carregarEmpresas(),
+            carregarEstagios()
+        ]);
+        
+        // Renderizar a lista de estágios
+        renderizarEstagios();
+        
+        fecharModal();
+        mostrarMensagem('Empresa cadastrada com sucesso!', 'success');
+        
+        // Atualizar o select de empresas no formulário de estágio
+        const empresaSelect = document.getElementById('empresa_id');
+        if (empresaSelect) {
+            empresaSelect.innerHTML = `
+                <option value="">Selecione uma empresa</option>
+                ${empresas.map(empresa => 
+                    `<option value="${empresa.id_empresa}">${empresa.nome}</option>`
+                ).join('')}
+            `;
+            
+            // Selecionar a empresa recém-cadastrada
+            const novaEmpresa = await response.json();
+            empresaSelect.value = novaEmpresa.id_empresa;
+        }
+        
+    } catch (error) {
+        console.error('Erro ao salvar empresa:', error);
+        mostrarMensagem(error.message || 'Erro ao salvar empresa', 'error');
+    } finally {
+        mostrarCarregamento(false);
+    }
+}
+
+// Funções auxiliares
+function formatarData(dataString) {
+    if (!dataString) return '';
+    const data = new Date(dataString);
+    return data.toLocaleDateString('pt-BR');
+}
+
+function mostrarCarregamento(mostrar, mensagem = 'Carregando...') {
+    let loading = document.getElementById('loading');
+    
+    // Se o elemento de loading não existir, cria um
+    if (!loading) {
+        loading = document.createElement('div');
+        loading.id = 'loading';
+        loading.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+        loading.innerHTML = `
+            <div class="bg-white rounded-lg p-6 max-w-sm w-full mx-4 shadow-xl">
+                <div class="flex items-center">
+                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mr-3"></div>
+                    <div>
+                        <p class="text-gray-800 font-medium" id="loading-message">${mensagem}</p>
+                        <p class="text-sm text-gray-500">Aguarde um momento...</p>
+                    </div>
+                </div>
+            </div>`;
+        document.body.appendChild(loading);
+    }
+    
+    // Atualiza a mensagem se fornecida
+    const messageElement = document.getElementById('loading-message');
+    if (messageElement && mensagem) {
+        messageElement.textContent = mensagem;
+    }
+    
+    // Mostra ou esconde o loading
+    loading.style.display = mostrar ? 'flex' : 'none';
+    
+    // Desabilita/Reabilita a interação com o conteúdo atrás do loading
+    const mainContent = document.querySelector('main');
+    if (mainContent) {
+        mainContent.style.pointerEvents = mostrar ? 'none' : '';
+        mainContent.style.opacity = mostrar ? '0.7' : '1';
+    }
+}
+
+function mostrarMensagem(mensagem, tipo = 'info') {
+    // Tipos de mensagem suportados e suas classes correspondentes
+    const tipos = {
+        success: {
+            bg: 'bg-green-100 border-green-500 text-green-700',
+            icon: 'check-circle',
+            title: 'Sucesso!'
+        },
+        error: {
+            bg: 'bg-red-100 border-red-500 text-red-700',
+            icon: 'exclamation-circle',
+            title: 'Erro!'
+        },
+        warning: {
+            bg: 'bg-yellow-100 border-yellow-500 text-yellow-700',
+            icon: 'exclamation-triangle',
+            title: 'Atenção!'
+        },
+        info: {
+            bg: 'bg-blue-100 border-blue-500 text-blue-700',
+            icon: 'info-circle',
+            title: 'Informação'
+        }
+    };
+    
+    // Usa o tipo 'info' como padrão se o tipo fornecido não for suportado
+    const tipoMensagem = tipos[tipo] || tipos.info;
+    
+    // Criar elemento de mensagem se não existir
+    let mensagemDiv = document.getElementById('mensagem-flutuante');
+    
+    if (!mensagemDiv) {
+        mensagemDiv = document.createElement('div');
+        mensagemDiv.id = 'mensagem-flutuante';
+        mensagemDiv.className = 'fixed top-4 right-4 z-50 max-w-sm w-full';
+        document.body.appendChild(mensagemDiv);
+    }
+    
+    // Cores baseadas no tipo de mensagem
+    const cores = {
+        success: 'bg-green-100 border-green-400 text-green-700',
+        error: 'bg-red-100 border-red-400 text-red-700',
+        warning: 'bg-yellow-100 border-yellow-400 text-yellow-700',
+        info: 'bg-blue-100 border-blue-400 text-blue-700'
+    };
+    
+    // Criar a mensagem
+    const mensagemHTML = `
+        <div id="${mensagemId}" class="${tipoMensagem.bg} border-l-4 p-4 rounded shadow-lg transform transition-all duration-300 ease-in-out hover:shadow-xl" role="alert">
+            <div class="flex items-start">
+                <div class="flex-shrink-0 pt-0.5">
+                    <i class="fas fa-${tipoMensagem.icon} text-lg"></i>
+                </div>
+                <div class="ml-3 flex-1">
+                    <p class="text-sm font-medium">${tipoMensagem.title}</p>
+                    <p class="text-sm mt-1">${mensagem}</p>
+                </div>
+                <div class="ml-4 flex-shrink-0">
+                    <button type="button" class="close-button text-gray-500 hover:text-gray-700 focus:outline-none">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+        </div>`;
+    
+    // Adicionar a mensagem com animação
+    mensagemDiv.insertAdjacentHTML('afterbegin', mensagemHTML);
+    const mensagemElement = document.getElementById(mensagemId);
+    
+    // Animação de entrada
+    requestAnimationFrame(() => {
+        mensagemElement.style.transform = 'translateX(100%)';
+        mensagemElement.style.opacity = '0';
+        
+        requestAnimationFrame(() => {
+            mensagemElement.style.transition = 'transform 0.3s ease-out, opacity 0.3s ease-out';
+            mensagemElement.style.transform = 'translateX(0)';
+            mensagemElement.style.opacity = '1';
+        });
+    });
+    
+    // Configurar timeout para remover a mensagem após 5 segundos
+    const timeoutId = setTimeout(() => {
+        fecharMensagem(mensagemId);
+    }, 5000);
+    
+    // Adicionar evento de clique no botão de fechar
+    const closeButton = mensagemElement.querySelector('.close-button');
+    if (closeButton) {
+        closeButton.addEventListener('click', () => {
+            clearTimeout(timeoutId);
+            fecharMensagem(mensagemId);
+        });
+    }
+    
+    // Função auxiliar para fechar a mensagem com animação
+    function fecharMensagem(id) {
+        const msg = document.getElementById(id);
+        if (!msg) return;
+        
+        msg.style.transition = 'transform 0.3s ease-out, opacity 0.3s ease-out';
+        msg.style.transform = 'translateX(100%)';
+        msg.style.opacity = '0';
+        
+        // Remover após a animação
+        setTimeout(() => {
+            if (msg && msg.parentNode) {
+                msg.remove();
+            }
+        }, 300);
+    }
+}
+
+function confirmarExclusaoEstagio(id) {
+    if (confirm('Tem certeza que deseja excluir este estágio?')) {
+        excluirEstagio(id);
+    }
+}
+
+// Inicializar a aba de estágios quando o DOM estiver pronto
+document.addEventListener('DOMContentLoaded', function() {
+    const tabEstagios = document.getElementById('estagios');
+    if (tabEstagios) {
+        initEstagios();
+    }
+});
+
+// Fechar modal ao clicar fora do conteúdo
+window.addEventListener('click', (e) => {
+    const modal = document.getElementById('modal');
+    if (e.target === modal) {
+        fecharModal();
+    }
+});
+
+// Fechar modal ao pressionar ESC
+document.addEventListener('keydown', handleEscapeKey);
+
+// Funções globais para serem chamadas do HTML
+window.abrirModalEstagio = abrirModalEstagio;
+window.abrirModalEmpresa = abrirModalEmpresa;
+window.fecharModal = fecharModal;
+window.salvarEstagio = salvarEstagio;
+window.salvarEmpresa = salvarEmpresa;
+window.editarEstagio = editarEstagio;
+window.excluirEstagio = excluirEstagio;
+window.atualizarCargaHoraria = atualizarCargaHoraria;
+window.finalizarEstagio = finalizarEstagio;
+window.confirmarExclusaoEstagio = confirmarExclusaoEstagio;
+
