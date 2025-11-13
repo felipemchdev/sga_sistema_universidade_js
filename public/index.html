@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="h-full bg-gray-100">
+<head>
+    <script>
+        // Se estiver acessando diretamente o arquivo, redireciona para a rota raiz
+        if (window.location.pathname.endsWith('dashboard.html')) {
+            window.location.href = '/';
+        }
+    </script>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard - Sistema de Gestão Acadêmica</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .sidebar {
+            transition: all 0.3s;
+        }
+        .sidebar.collapsed {
+            width: 70px;
+        }
+        .sidebar.collapsed .sidebar-text,
+        .sidebar.collapsed .logo-text {
+            display: none;
+        }
+        .sidebar.collapsed .sidebar-item {
+            justify-content: center;
+        }
+        .main-content {
+            transition: margin-left 0.3s;
+        }
+        .sidebar:not(.collapsed) + .main-content {
+            margin-left: 250px;
+        }
+        .sidebar.collapsed + .main-content {
+            margin-left: 70px;
+        }
+    </style>
+</head>
+<body class="h-full">
+    <!-- Indicador de carregamento -->
+    <div id="loading" class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-white bg-opacity-90">
+        <div class="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+        <p class="mt-4 text-lg font-medium text-gray-700">Carregando dados...</p>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="sidebar fixed left-0 top-0 h-full bg-indigo-800 text-white w-64 shadow-lg z-40">
+        <div class="p-6 flex items-center space-x-3">
+            <div class="text-2xl">🏫</div>
+            <h2 class="text-xl font-bold logo-text">SGA</h2>
+        </div>
+        <nav class="mt-8">
+            <ul>
+                <li class="mb-2">
+                    <a href="index.html" class="sidebar-item flex items-center px-6 py-3 text-white bg-indigo-900 border-l-4 border-white font-medium">
+                        <i class="fas fa-chart-pie text-lg w-6"></i>
+                        <span class="ml-3 sidebar-text">Dashboard</span>
+                    </a>
+                </li>
+                <li class="mb-2">
+                    <a href="painel.html" class="sidebar-item flex items-center px-6 py-3 text-indigo-200 hover:bg-indigo-700 hover:text-white transition-colors">
+                        <i class="fas fa-tachometer-alt text-lg w-6"></i>
+                        <span class="ml-3 sidebar-text">Painel de Controle</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content min-h-screen bg-gray-100">
+        <!-- Top Navigation -->
+        <header class="bg-white shadow-sm">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
+                <div class="flex items-center">
+                    <button id="sidebarToggle" class="text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500 rounded-md p-2">
+                        <i class="fas fa-bars text-xl"></i>
+                    </button>
+                    <h1 class="ml-4 text-2xl font-bold text-gray-900">Dashboard</h1>
+                </div>
+                <div class="flex items-center">
+                    <div class="relative">
+                        <button class="flex items-center text-sm font-medium text-gray-700 hover:text-gray-900 focus:outline-none">
+                            <span class="mr-2">Admin</span>
+                            <i class="fas fa-user-circle text-2xl text-gray-400"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Page Content -->
+        <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <!-- Cards de Resumo -->
+            <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4 mb-8">
+                <!-- Total de Alunos -->
+                <div class="bg-white overflow-hidden shadow rounded-lg">
+                    <div class="p-5">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0 bg-indigo-500 rounded-md p-3">
+                                <i class="fas fa-user-graduate text-white text-xl"></i>
+                            </div>
+                            <div class="px-4 py-5 sm:p-6">
+                                <dl>
+                                    <dt class="text-sm font-medium text-gray-500 truncate">Total de Alunos</dt>
+                                    <dd>
+                                        <div class="text-lg font-medium text-gray-900" id="total-alunos">0</div>
+                                    </dd>
+                                </dl>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Fluxo de Caixa -->
+                <div class="bg-white overflow-hidden shadow rounded-lg">
+                    <div class="p-5">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0 bg-green-500 rounded-md p-3">
+                                <i class="fas fa-dollar-sign text-white text-xl"></i>
+                            </div>
+                            <div class="px-4 py-5 sm:p-6">
+                                <dl>
+                                    <dt class="text-sm font-medium text-gray-500 truncate">Fluxo de Caixa (Últimos 6 meses)</dt>
+                                    <dd>
+                                        <div class="text-lg font-medium text-gray-900" id="fluxo-caixa">R$ 0,00</div>
+                                    </dd>
+                                </dl>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Alunos Trancados -->
+                <div class="bg-white overflow-hidden shadow rounded-lg">
+                    <div class="p-5">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0 bg-yellow-500 rounded-md p-3">
+                                <i class="fas fa-pause-circle text-white text-xl"></i>
+                            </div>
+                            <div class="px-4 py-5 sm:p-6">
+                                <dl>
+                                    <dt class="text-sm font-medium text-gray-500 truncate">Alunos Trancados</dt>
+                                    <dd>
+                                        <div class="text-lg font-medium text-gray-900" id="alunos-trancados">0</div>
+                                    </dd>
+                                </dl>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Alunos Inativos -->
+                <div class="bg-white overflow-hidden shadow rounded-lg">
+                    <div class="p-5">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0 bg-red-500 rounded-md p-3">
+                                <i class="fas fa-user-times text-white text-xl"></i>
+                            </div>
+                            <div class="px-4 py-5 sm:p-6">
+                                <dl>
+                                    <dt class="text-sm font-medium text-gray-500 truncate">Alunos Inativos</dt>
+                                    <dd>
+                                        <div class="text-lg font-medium text-gray-900" id="alunos-inativos">0</div>
+                                    </dd>
+                                </dl>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Gráficos -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Gráfico de Alunos -->
+                <div class="bg-white p-6 rounded-lg shadow">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">Distribuição de Alunos</h3>
+                    <div class="relative h-80">
+                        <canvas id="alunosChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Gráfico de Fluxo de Caixa -->
+                <div class="bg-white p-6 rounded-lg shadow">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">Fluxo de Caixa (Últimos 6 meses)</h3>
+                    <div class="relative h-80">
+                        <canvas id="fluxoCaixaChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Toggle Sidebar
+        document.getElementById('sidebarToggle').addEventListener('click', function() {
+            document.querySelector('.sidebar').classList.toggle('collapsed');
+        });
+
+        // Esconder loading quando a página carregar
+        document.addEventListener('DOMContentLoaded', function() {
+            // Simular carregamento (remova isso quando integrar com o backend)
+            setTimeout(function() {
+                document.getElementById('loading').classList.add('hidden');
+            }, 1000);
+        });
+    </script>
+    <script src="js/dashboard.js"></script>
+</body>
+</html>

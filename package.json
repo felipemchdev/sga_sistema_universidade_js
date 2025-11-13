@@ -1,0 +1,25 @@
+{
+  "name": "projeto_universidade_web",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "nodemon src/server.js",
+    "start": "node src/server.js",
+    "seed:alunos": "node src/scripts/faker_alunos_matriculas.js",
+    "seed:pagamentos": "node src/scripts/faker_pagamentos.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@faker-js/faker": "^9.9.0",
+    "chart.js": "^4.5.1",
+    "express": "^5.1.0",
+    "mssql": "^11.0.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10"
+  }
+}

@@ -1,0 +1,28 @@
+# Dependências
+node_modules/
+
+# Arquivos de ambiente
+.env
+
+# Logs
+logs
+*.log
+npm-debug.log*
+
+# Pasta de build
+/dist
+
+# Pasta frontend (removendo já que não é mais necessária)
+frontend/
+
+# Arquivos do sistema operacional
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Arquivos temporários
+*.tmp
+*.temp
