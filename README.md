@@ -1,64 +1,59 @@
+# 🎓 Sistema de Gestão Acadêmica
 
-LEIA COM MUITA ATENÇÃO!
-=========================
+## 🔧 Pré-requisitos
 
-🚀 INSTALAÇÃO DO SISTEMA DE GESTÃO ACADÊMICA
+1. **SQL Server**
 
-==========================================================================================
-PASSO 1) INSTALAÇÃO DAS DEPENDÊNCIAS
+   - Baixe e instale o [SQL Server](https://www.microsoft.com/pt-br/sql-server/sql-server-downloads)
 
-Certifique-se de ter o Node.js instalado (versão 14 ou superior).
+2. **Configuração do SQL Server**
 
-1. Abra o terminal na pasta do projeto
-2. Execute o comando para instalar as dependências:
-   > npm install
-   >
+   - Abra o **SQL Server Configuration Manager**
+   - Habilite os protocolos:
+     1. Clique em **Protocolos para MSSQLSERVER**
+     2. Habilite **TCP/IP**
+     3. Clique com o botão direito em **TCP/IP** → **Propriedades**
+     4. Na aba **Endereços IP**, habilite todos os IP , até o final.
+     5. Habilite **Pipes Nomeados**
+   - Reinicie o serviço do SQL Server
 
-==========================================================================================
-PASSO 2) CONFIGURAÇÃO DO BANCO DE DADOS
+3. **Banco de Dados**
 
-1. Certifique-se de ter o SQL Server instalado e rodando
-2. Configure as credenciais do banco de dados no arquivo:
-   /src/config/db.js
+   Execute os scripts na ordem, dentro do SQL Server Management Studio (LEMBRE DE SELECIONAR A TABELA ProjetoUniversidadeWeb):
 
-==========================================================================================
-PASSO 3) INICIANDO O SISTEMA
+   ```
+   src/database/cria_usuario_bd.sql
+   src/database/projeto_universidade_web.sql
+   src/database/criar_tabela_estagio.sql
+   ```
 
-1. Para iniciar o servidor, execute:
+## 🚀 Instalação Rápida
 
-   > npm start
-   >
-2. Acesse o sistema em:
-   http://localhost:3000
+1. Instale as dependências:
+   ```bash
+   npm install
+   ```
+2. Configure o banco de dados em ` /src/config/db.js (se não alterar nada o login é "admin_banco" e a senha " admin") `
+3. Popule o banco de dados:
+   ```bash
+   npm run seed:alunos
+   npm run seed:pagamentos
+   npm run seed:estagios
+   ```
+4. Inicie o servidor:
+   ```bash
+   npm run dev
+   ```
+5. Acesse: http://localhost:3000
 
-==========================================================================================
-PASSO 4) DADOS INICIAIS (OPCIONAL)
+## 📌 Dados de Teste
 
-Para popular o banco com dados de teste, execute:
+- **Alunos**: Alunos distribuídos nas turmas
+- **Matrículas**: Automáticas para cada aluno
+- **Pagamentos**: Gerados automaticamente
+- **Estágios**: Empresas e estágios de teste
 
-> npm run seed:alunos
-> npm run seed:pagamentos
+## 🔗 Links Úteis
 
-==========================================================================================
-PASSO 5) DESENVOLVIMENTO
-
-Para desenvolvimento com recarregamento automático:
-
-> npm run dev
-
-==========================================================================================
-AJUDA E SUPORTE
-
-Em caso de problemas, verifique:
-
-1. Se todas as dependências foram instaladas corretamente
-2. Se o banco de dados está acessível
-3. Se as portas necessárias estão disponíveis
-
-Para mais informações, assista a playlist completa do Saullo:
-https://www.youtube.com/playlist?list=PL4x1btvjpIuBOYaXjeHpX7r5_c2ysUUH8
-Rode a aplicação:
-
-> npm run dev
-> ===========================================================================================
->
+- [Download SQL Server](https://www.microsoft.com/pt-br/sql-server/sql-server-downloads)
+- [Download SSMS](https://docs.microsoft.com/pt-br/sql/ssms/download-sql-server-management-studio-ssms)
